@@ -94,7 +94,7 @@ class Model(object):
 
     def setup_encoder(self): # encoder的设置
         with vs.variable_scope("Encoder"): # 在encoder的作用域下
-            inp = tf.nn.dropout(self.encoder_inputs, self.keep_prob) # 对encoder进行dropout dropout率为 keep_prob
+            inp = tf.nn.dropout(self.encoder_inputs, self.keep_prob) # 对encoder进行dropout dropout率为 keep_prob -> 减少过拟合
             fw_cell = rnn_cell.GRUCell(self.size) # GRU单元
             fw_cell = rnn_cell.DropoutWrapper(
                 fw_cell, output_keep_prob=self.keep_prob) # 对单元进行dropout
@@ -118,10 +118,11 @@ class Model(object):
             self.encoder_output = out
 
     def setup_decoder(self): # decoder的设置
+        # vs.variable_scope：变量命名，使得参数保持一致，https://morvanzhou.github.io/tutorials/machine-learning/tensorflow/5-12-scope/
         with vs.variable_scope("Decoder"):
             inp = tf.nn.dropout(self.decoder_inputs, self.keep_prob)
             if self.num_layers > 1:
-                with vs.variable_scope("RNN"):
+                with vs.variable_scope("RNN"): # 理解成调用RNN
                     decoder_cell = rnn_cell.GRUCell(self.size)
                     decoder_cell = rnn_cell.DropoutWrapper(decoder_cell,
                                                            output_keep_prob=self.keep_prob)
@@ -132,7 +133,7 @@ class Model(object):
                                              initial_state=self.decoder_cell.zero_state(
                                                  self.batch_size, dtype=tf.float32))
 
-            with vs.variable_scope("Attn"):   #todo ???????????????????????????
+            with vs.variable_scope("Attn"):   # 理解为调用attention
                 self.attn_cell = GRUCellAttn(self.size, self.len_inp,
                                              self.encoder_output, self.src_mask, self.decode_method)
                 # 设置 attention
@@ -146,6 +147,7 @@ class Model(object):
     def setup_loss(self): # 损失函数的设置
         with vs.variable_scope("Loss"):
             len_out = tf.shape(self.decoder_output)[0]  # 输出的长度
+            # _linear:调用model_attn中的_linear方法
             logits2d = _linear(tf.reshape(self.decoder_output,
                                                    [-1, self.size]),
                                         self.voc_size, True, 1.0) # 计算输出跟权重的矩阵相乘 #todo?????????
@@ -159,6 +161,7 @@ class Model(object):
                 labels1d = tf.one_hot(labels1d, depth=self.voc_size) # 如果只有前向，或者丢弃率是1，就one_hot编码
             else:
                 labels1d = label_smooth(labels1d, self.voc_size)  # 否则对标签进行平滑
+            # tf.pad: 作用：填充， masks_no_GO：一个张亮，代表每一维填充多少行、列
             mask1d = tf.reshape(tf.pad(masks_no_GO, [[0, 1], [0, 0]]), [-1])  # mask是什么~
             losses1d = tf.nn.softmax_cross_entropy_with_logits(logits=logits2d, labels=labels1d) * tf.to_float(mask1d)
             # 计算对数交叉熵
@@ -270,6 +273,7 @@ class Model(object):
         self.beam_output = ret_vars[1]
         self.beam_scores = ret_vars[0]
 
+    # todo ？？该函数作用
     def decode_beam(self, session, encoder_output, src_mask, len_inp, beam_size=128):
         input_feed = {}
         input_feed[self.encoder_output] = encoder_output

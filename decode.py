@@ -104,6 +104,7 @@ def decode():
     f_o = open(pjoin(folder_out, FLAGS.dev + '.avg' + '.o.txt.' + str(FLAGS.start) + '_' + str(FLAGS.end)), 'w')
     f_p = open(pjoin(folder_out, FLAGS.dev + '.avg.p.txt.' + str(FLAGS.start) + '_' + str(FLAGS.end)), 'w')
     line_id = 0
+    # todo file?
     for line in file(pjoin(FLAGS.data_dir, FLAGS.dev + '.x.txt')):
         if line_id >= FLAGS.start:
             sents = [ele for ele in line.strip('\n').split('\t')][:50]

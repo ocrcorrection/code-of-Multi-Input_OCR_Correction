@@ -14,9 +14,7 @@ SOS_ID = 1
 EOS_ID = 2
 UNK_ID = 3
 
-
 _WORD_SPLIT = re.compile(b"([.,!?\"':;)(])")
-
 
 def tokenize(string):
     return [int(s) for s in string.split()]
