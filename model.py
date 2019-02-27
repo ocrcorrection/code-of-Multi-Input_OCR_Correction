@@ -37,9 +37,9 @@ class Model(object):
                  forward_only=False, optimizer="adam", decode="single"):
         self.voc_size = voc_size  # voc_size是什么
         self.size = size  # 大小
-        self.num_layers = num_layers  # 层的数量
-        self.learning_rate = learning_rate  #  学习率
-        self.learning_decay = learning_rate_decay  # 指数下降的速率
+        self.num_layers = num_layers  # 层的数量:3
+        self.learning_rate = learning_rate  #  学习率: 0.0003
+        self.learning_decay = learning_rate_decay  # 指数下降的速率: 默认
         self.max_grad_norm = max_gradient_norm # 最大 随机 归一化？
         self.foward_only = forward_only # 是否只前向推导
         self.optimizer = optimizer # 优化器
@@ -59,14 +59,20 @@ class Model(object):
         # tf.cast 是类型转换函数 对原始数据按列求和，然后转换成int64的类型
         self.tgt_len = tf.cast(tf.reduce_sum(self.tgt_mask, axis=0), tf.int64)
 
-    def setup_train(self):  # 训练计划
+    def setup_train(self):  # 训练计划，设置
+        # lr: learning rate
         self.lr = tf.Variable(float(self.learning_rate), trainable=False) # 不放在tranable里
         self.lr_decay_op = self.lr.assign(
             self.lr * self.learning_decay) # lr是什么
         self.global_step = tf.Variable(0, trainable=False) # 全局步骤
         params = tf.trainable_variables() # 参数
+        # 调用优化器函数get_optimizer()
         opt = get_optimizer(self.optimizer)(self.lr)
         gradients = tf.gradients(self.losses, params) # 通过 loss函数和 params 进行梯度下降
+        """
+        tf.clip_by_global_norm(t_list, clip_norm, use_norm=None, name=None) 
+        t_list 是梯度张量， clip_norm 是截取的比率, 这个函数返回截取过的梯度张量和一个所有张量的全局范数。
+        """
         clipped_gradients, _ = tf.clip_by_global_norm(gradients,
                                                       self.max_grad_norm)
         # 该函数 保证梯度不爆炸或者消失
@@ -113,7 +119,7 @@ class Model(object):
 
     def setup_decoder(self): # decoder的设置
         with vs.variable_scope("Decoder"):
-            inp =  tf.nn.dropout(self.decoder_inputs, self.keep_prob)
+            inp = tf.nn.dropout(self.decoder_inputs, self.keep_prob)
             if self.num_layers > 1:
                 with vs.variable_scope("RNN"):
                     decoder_cell = rnn_cell.GRUCell(self.size)

@@ -3,7 +3,7 @@ import numpy as np
 import os
 import kenlm
 from os.path import join as pjoin
-from multiprocessing import Pool
+from multiprocessing import Pool # 多进程
 from util import remove_nonascii
 import argparse
 
@@ -47,14 +47,17 @@ def score_sent(paras):
     global lm
     thread_no, sent = paras
     sent = get_string_to_score(sent.lower())
-    return thread_no, lm.perplexity(sent)  # ? **********
+    return thread_no, lm.perplexity(sent)  # ? ********** perplexity： 困惑
 
-# 是不是找witnesses
+# 找witnesses
 def rank_sent(pool, sents):    # find the best sentence with lowest perplexity
     sents = [ele.lower() for ele in sents]
     probs = np.ones(len(sents)) * -1
+    # zip: 用于将可迭代的对象作为参数，将对象中对应的元素，打包成一个个元组，然后返回这些元组的对象，好处是可以节约内存
+    # todo results 是一个什么样的形式
     results = pool.map(score_sent, zip(np.arange(len(sents)), sents))  # zip 是什么函数
     min_str = ''
+    # 无穷大
     min_prob = float('inf')
     min_id = -1
     for tid, score in results:
@@ -78,12 +81,16 @@ def generate_train_noisy(data_dir, out_dir, file_prefix, lm_file, lm_score, flag
                     break
             line_id += 1
         return res
+    # 读info文件
     list_info = read_file(join(data_dir, file_prefix + '.info.txt'))
     list_x = read_file(join(data_dir, file_prefix + '.x.txt'))  # x y z?
     if flag_manual:            # if current OCR'd file has corresponding manual transcription
         list_y = read_file(join(data_dir, file_prefix + '.y.txt'))
+    # 如果out_dir 不存在，则创建
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
+    # start? end?
+    # 写文件
     f_x = open(join(out_dir, '%s.x.txt.%d_%d'%(file_prefix, start, end)), 'w')
     f_y = open(join(out_dir, '%s.y.txt.%d_%d'%(file_prefix, start, end)), 'w')
     f_info = open(join(out_dir, '%s.info.txt.%d_%d'%(file_prefix, start, end)), 'w')
@@ -93,6 +100,7 @@ def generate_train_noisy(data_dir, out_dir, file_prefix, lm_file, lm_score, flag
     for i in range(len(list_x)):
         witness = [ele.strip() for ele in list_x[i].strip('\n').split('\t') if len(ele.strip()) > 0]
         best_str, best_id, best_prob, probs = rank_sent(pool, witness)
+        # probs[0]: 第0个OCR输出
         if best_prob < 10 and best_prob < probs[0]:
             if probs[0] - best_prob > 1:
                 f_x.write(witness[0] + '\n')
@@ -109,7 +117,7 @@ def generate_train_noisy(data_dir, out_dir, file_prefix, lm_file, lm_score, flag
 
 def main():
     args = get_args()
-    flag_manual=args.flag_manual
+    flag_manual = args.flag_manual
     data_dir = args.data_dir
     out_dir = args.out_dir
     lm_file = args.lm_file
