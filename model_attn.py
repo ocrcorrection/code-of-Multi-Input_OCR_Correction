@@ -46,8 +46,8 @@ def _linear(args, output_size, bias, bias_start=0.0, scope=None):
 
     # Now the computation.
     with vs.variable_scope(scope or "Linear"):
-        matrix = vs.get_variable(
-            "Matrix", [total_arg_size, output_size], dtype=dtype)
+        # 这里的matrix是怎么得到的，呜，应该是隐藏层参数，但我不知道这是在哪儿设的，后面的biase也是
+        matrix = vs.get_variable("Matrix", [total_arg_size, output_size], dtype=dtype)
         if len(args) == 1:
             res = math_ops.matmul(args[0], matrix)
         else:
@@ -165,14 +165,14 @@ class GRUCellAttn(rnn_cell.GRUCell):  # 传入cell.GRUCell 来包装 GRUCellAttn
                                                   self._num_units, True, 1.0))
             return (out, out)
 
+    # 没什么好说的，参照论文就是在多个字符序列上再加了一个attention或者说权重，详情见论文第三页，都在那儿，该死的公式。。
     def beam_weighted(self, inputs, state, beam_size, scope=None):
         gru_out, gru_state = super(GRUCellAttn, self).__call__(inputs, state,
                                                                scope)
         with vs.variable_scope(scope or type(self).__name__):
             with vs.variable_scope("Attn2"):
                 # beam_size * num_units
-                gamma_h = tanh(_linear(gru_out,
-                                                self._num_units, True, 1.0))
+                gamma_h = tanh(_linear(gru_out, self._num_units, True, 1.0))
 
             phi_hs = array_ops.reshape(self.phi_hs,
                                        [-1, self.enc_len, 1, self._num_units])
