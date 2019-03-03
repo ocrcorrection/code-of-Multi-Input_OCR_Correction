@@ -15,16 +15,16 @@ def _linear(args, output_size, bias, bias_start=0.0, scope=None):
     Args:
       args: a 2D Tensor or a list of 2D, batch x n, Tensors.
       output_size: int, second dimension of W[i].
-      bias: boolean, whether to add a bias term or not.
-      bias_start: starting value to initialize the bias; 0 by default.
-      scope: VariableScope for the created subgraph; defaults to "Linear".
+      bias: boolean, whether to add a bias term or not.是否添加偏差项
+      bias_start: starting value to initialize the bias; 0 by default.初始化偏差的起始值，默认为0
+      scope: VariableScope for the created subgraph; defaults to "Linear".已经创建的子图，默认为线性
 
     Returns:
-      A 2D Tensor with shape [batch x output_size] equal to
+      A 2D Tensor with shape [batch x output_size] equal to ：Tensors列表
       sum_i(args[i] * W[i]), where W[i]s are newly created matrices.
 
-    Raises:
-      ValueError: if some of the arguments has unspecified or wrong shape.
+    Raises:异常
+      ValueError: if some of the arguments参数 has unspecified or wrong shape.
     """
     if args is None or (nest.is_sequence(args) and not args):
         raise ValueError("`args` must be specified")
@@ -63,25 +63,31 @@ def _linear(args, output_size, bias, bias_start=0.0, scope=None):
 
 
 
-class GRUCellAttn(rnn_cell.GRUCell):  # 传入cell.GRUCell 来包装 GRUCellAttn
+class GRUCellAttn(rnn_cell.GRUCell):
     def __init__(self, num_units, enc_len, encoder_output, encoder_mask,
                  decode, scope=None):
+        # todo len_input?
         # len_inp * batch_size * (2 * num_units) / num_wit * len_inp * batch_size * (2 * num_units)
         self.hs = encoder_output
         # len_inp * batach_ize   /  num_wit * len_inp * batch_size(1)
-        self.mask = tf.cast(encoder_mask, tf.bool)
+        # 全部转为1.0; encoder_mask == 之前的原文本source mask
+        self.mask = tf.cast(encoder_mask, tf.bool) # 把encoder_mask的类型变为bool类型
         self.enc_len = enc_len
         with vs.variable_scope(scope or type(self).__name__):
             with vs.variable_scope("Attn1"):
                 # (len_inp * batch_size) * (2 * num_units) / (num_wit * len_inp * batch_size) * (2 * num_units)
                 hs2d = array_ops.reshape(self.hs, [-1, 2 * num_units])
                 # (len_inp * batch_size) * num_units  /  (num_wit * len_inp * batch_size) * num_units
+                # hs2d: args
+                # phi_hs2d: shape= 1 * numunits
                 phi_hs2d = tanh(_linear(hs2d, num_units, True, 1.0))
                 # len_inp * batch_size * num_units
                 self.phi_hs = array_ops.reshape(phi_hs2d,
                                                 [self.enc_len, -1, num_units])
         super(GRUCellAttn, self).__init__(num_units)
 
+    # 默认函数，不需要像普通调用函数那样使用，常用语改变对象状态
+    # 返回结果： gru_out, gru_state
     def __call__(self, inputs, state, scope=None):
         gru_out, gru_state = super(GRUCellAttn, self).__call__(inputs, state, scope)
         with vs.variable_scope(scope or type(self).__name__):
@@ -110,9 +116,10 @@ class GRUCellAttn(rnn_cell.GRUCell):  # 传入cell.GRUCell 来包装 GRUCellAttn
                 # beam_size * num_units
                 gamma_h = tanh(_linear(gru_out, self._num_units,
                                                 True, 1.0))
-            # len_inp * batch_size(1) * num_units  / beam_size * num_units => len_inp * beam_size
+            # todo ? len_inp * batch_size(1) * num_units  / beam_size * num_units => len_inp * beam_size
             weights = tf.reduce_sum(self.phi_hs * gamma_h, axis=2)
             # len_inp * batch_size(1) => len_inp * beam_size
+            # tf.tile: 对张量进行扩展
             mask = tf.tile(self.mask, [1, beam_size])
             # len_inp * beam_size => len_inp * beam_size
             weights = tf.where(mask, weights,
@@ -123,10 +130,11 @@ class GRUCellAttn(rnn_cell.GRUCell):  # 传入cell.GRUCell 来包装 GRUCellAttn
             # hs: len_inp * 1 * (2 * size)   weights: len_inp * beam_size * 1  =>  beam_size * (2 * size)
             context = tf.reduce_sum(self.hs * weights, axis=0)
             with vs.variable_scope("AttnConcat"):
+                # 激活函数
                 out = tf.nn.relu(_linear(tf.concat([context, gru_out], -1),
                                          self._num_units, True, 1.0))
             return (out, out)
-
+    # 姚
     def beam_average(self, inputs, state, beam_size, scope=None):
         gru_out, gru_state = super(GRUCellAttn, self).__call__(inputs, state, scope)
         with vs.variable_scope(scope or type(self).__name__):
@@ -164,7 +172,7 @@ class GRUCellAttn(rnn_cell.GRUCell):  # 传入cell.GRUCell 来包装 GRUCellAttn
                 out = tf.nn.relu(_linear(tf.concat([context, gru_out], -1),
                                                   self._num_units, True, 1.0))
             return (out, out)
-
+    # 熊
     def beam_weighted(self, inputs, state, beam_size, scope=None):
         gru_out, gru_state = super(GRUCellAttn, self).__call__(inputs, state,
                                                                scope)
@@ -216,7 +224,7 @@ class GRUCellAttn(rnn_cell.GRUCell):  # 传入cell.GRUCell 来包装 GRUCellAttn
                 out = tf.nn.relu(_linear(tf.concat([context, gru_out], -1),
                                          self._num_units, True, 1.0))
             return (out, out)
-
+    # 杨关
     def beam_flat(self, inputs, state, beam_size, scope=None):
         gru_out, gru_state = super(GRUCellAttn, self).__call__(inputs, state, scope)
         with vs.variable_scope(scope or type(self).__name__):
