@@ -58,33 +58,38 @@ def train():
     """Train a translation model using NLC data."""
     # Prepare NLC data.
     logging.info("Get NLC data in %s" % FLAGS.data_dir)
+    # 以下分别是训练集，和验证集
     x_train = pjoin(FLAGS.data_dir, 'train.ids.x')
     y_train = pjoin(FLAGS.data_dir, 'train.ids.y')
     x_dev = pjoin(FLAGS.data_dir, FLAGS.dev + '.ids.x')
     y_dev = pjoin(FLAGS.data_dir, FLAGS.dev + '.ids.y')
+    # 词汇表路径
     vocab_path = pjoin(FLAGS.voc_dir, "vocab.dat")
     vocab, _ = read_vocab(vocab_path)
     vocab_size = len(vocab)
     logging.info("Vocabulary size: %d" % vocab_size)
     if not os.path.exists(FLAGS.train_dir):
         os.makedirs(FLAGS.train_dir)
+    # todo? file_handler,日志文件？
     file_handler = logging.FileHandler("{0}/log.txt".format(FLAGS.train_dir))
     logging.getLogger().addHandler(file_handler)
 
     # with open(os.path.join(FLAGS.train_dir, "flags.json"), 'w') as fout:
     #     json.dump(FLAGS.__flags, fout)
     with tf.Session() as sess:
+        # size: units 的大小
         logging.info("Creating %d layers of %d units." % (FLAGS.num_layers, FLAGS.size))
         model, epoch = create_model(sess, vocab_size, False)
 
         # logging.info('Initial validation cost: %f' % validate(model, sess, x_dev, y_dev))
-
+        # forward_only=false,,双向
         if False:
             tic = time.time()
             params = tf.trainable_variables()
+            # todo ？num_params:参数数量
             num_params = sum(map(lambda t: np.prod(tf.shape(t.value()).eval()), params))
             toc = time.time()
-            print ("Number of params: %d (retreival took %f secs)" % (num_params, toc - tic))
+            print("Number of params: %d (retreival took %f secs)" % (num_params, toc - tic))
 
         best_epoch = 0
         previous_losses = []
@@ -93,6 +98,7 @@ def train():
         exp_norm = None
         total_iters = 0
         start_time = time.time()
+        #不停进行迭代
         while (FLAGS.epochs == 0 or epoch < FLAGS.epochs):
             epoch += 1
             print(epoch)
@@ -100,6 +106,7 @@ def train():
 
             ## Train
             epoch_tic = time.time()
+            # 传入训练数据
             for source_tokens, source_mask, target_tokens, target_mask in pair_iter(x_train,
                                                                                     y_train,
                                                                                     FLAGS.batch_size,
@@ -115,17 +122,20 @@ def train():
                                                           dropout=FLAGS.dropout)
                 toc = time.time()
                 iter_time = toc - tic
+                # 总迭代次数
                 total_iters += np.sum(target_mask)
                 tps = total_iters / (time.time() - start_time)
                 current_step += 1
                 lengths = np.sum(target_mask, axis=0)
                 mean_length = np.mean(lengths)
+                # 标准差
                 std_length = np.std(lengths)
 
                 if not exp_cost:
                     exp_cost = cost
                     exp_length = mean_length
                     exp_norm = grad_norm
+                # todo ?
                 else:
                     exp_cost = 0.99*exp_cost + 0.01*cost
                     exp_length = 0.99*exp_length + 0.01*mean_length
