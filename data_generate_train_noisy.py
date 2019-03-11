@@ -74,7 +74,7 @@ def generate_train_noisy(data_dir, out_dir, file_prefix, lm_file, lm_score, flag
     def read_file(path):
         line_id = 0
         res = []
-        for line in file(path):
+        for line in open(path):
             if line_id >= start:
                 res.append(line)
                 if line_id + 1 == end:
