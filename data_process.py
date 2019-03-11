@@ -19,7 +19,6 @@ def get_args():
 replace_xml = {'&lt;': '<', '&gt;': '>', '&quot;': '"',
                '&apos;': '\'', '&amp;': '&'}
 
-
 '''
 找witness的smith-waterman算法似乎提前完成了，这里的数据是已经处理好的数据
 只是组织了一下将每个输入文件写入对应的'.x','.y','.z','.x.info','.y.info','.z.info'
@@ -31,25 +30,23 @@ def process_file(paras):
     fn, out_fn = paras
     with gzip.open(fn, 'r') as f_:
         content = f_.readlines()
-    out_x = open(out_fn + '.x', 'w')  # output file for OCR'd text
-    out_y = open(out_fn + '.y', 'w')  # output file for duplicated texts (witnesses)
-    out_z = open(out_fn + '.z', 'w')  # output file for manual transcription
+    out_x = open(out_fn + '.x.txt', 'w')  # output file for OCR'd text
+    out_y = open(out_fn + '.y.txt', 'w')  # output file for duplicated texts (witnesses)
+    out_z = open(out_fn + '.z.txt', 'w')  # output file for manual transcription
+    out_z = open(out_fn + '.z.txt', 'w')  # output file for manual transcription
     # output file for the information of OCR'd text, each line contains:
     # (group no., line no., file_id, begin index in file, end index in file,
     # number of witnesses, number of manual transcriptions)
-    out_x_info = open(out_fn + '.x.info', 'w')
+    out_x_info = open(out_fn + '.x.info.txt', 'w')
     # output file for the information of each witness, each line contains:
     # (line no, file_id, begin index in file)
-    out_y_info = open(out_fn + '.y.info', 'w')
+    out_y_info = open(out_fn + '.y.info.txt', 'w')
     # output file for the information of each manual transcription,
     # each line contains: (line no, file_id, begin index in file)
-    out_z_info = open(out_fn + '.z.info', 'w')
+    out_z_info = open(out_fn + '.z.info.txt', 'w')
     cur_line_no = 0
     cur_group = 0
-    for index, line in enumerate(content):
-        if index == 0:
-            print(type(line))
-            print('!!!!!!!!!!!!!!!!!!!!!')
+    for line in content:
         line = str(line, encoding='utf-8')
         line = json.loads(line.strip('\r\n'))
         cur_id = line['id']
@@ -115,41 +112,41 @@ def merge_file(data_dir, out_dir):  # merge all the output files and information
     list_file = [ele for ele in listdir(data_dir) if ele.startswith('part')]
     list_out_file = [join(out_dir, 'pair.' + str(i)) for i in range(len(list_file))]
     out_fn = join(out_dir, 'pair')
-    out_x = open(out_fn + '.x', 'w')
-    out_y = open(out_fn + '.y', 'w')
-    out_z = open(out_fn + '.z', 'w')
-    out_z_info = open(out_fn + '.z.info', 'w')
-    out_x_info = open(out_fn + '.x.info', 'w')
-    out_y_info = open(out_fn + '.y.info', 'w')
+    out_x = open(out_fn + '.x.txt', 'w')
+    out_y = open(out_fn + '.y.txt', 'w')
+    out_z = open(out_fn + '.z.txt', 'w')
+    out_z_info = open(out_fn + '.z.info.txt', 'w')
+    out_x_info = open(out_fn + '.x.info.txt', 'w')
+    out_y_info = open(out_fn + '.y.info.txt', 'w')
     last_num_line = 0
     last_num_group = 0
     total_num_y = 0
     total_num_z = 0
     for fn in list_out_file:
         num_line = 0
-        for line in open(fn + '.x'):
+        for line in open(fn + '.x.txt'):
             out_x.write(line)
             num_line += 1
-        for line in open(fn + '.y'):
+        for line in open(fn + '.y.txt'):
             out_y.write(line)
-        for line in open(fn + '.z'):
+        for line in open(fn + '.z.txt'):
             out_z.write(line)
         dict_x2liney = {}
         dict_x2linez = {}
-        for line in open(fn + '.y.info'):
+        for line in open(fn + '.y.info.txt'):
             line = line.split('\t')
             line[0] = str(int(line[0]) + last_num_line)
             dict_x2liney[line[0]] = total_num_y
             total_num_y += 1
             out_y_info.write('\t'.join(line))
-        for line in open(fn + '.z.info'):
+        for line in open(fn + '.z.info.txt'):
             line = line.split('\t')
             line[0] = str(int(line[0]) + last_num_line)
             dict_x2linez[line[0]] = total_num_z
             total_num_z += 1
             out_z_info.write('\t'.join(line))
         num_group = 0
-        for line in open(fn + '.x.info'):
+        for line in open(fn + '.x.info.txt'):
             line = line.strip('\r\n').split('\t')
             cur_group = int(line[0])
             line[0] = str(int(line[0]) + last_num_group)
@@ -168,8 +165,8 @@ def merge_file(data_dir, out_dir):  # merge all the output files and information
         last_num_group += num_group
         last_num_line += num_line
         for post_fix in ['.x', '.y', '.z']:
-            os.remove(fn + post_fix)
-            os.remove(fn + post_fix + '.info')
+            os.remove(fn + post_fix + '.txt')
+            os.remove(fn + post_fix + '.info.txt')
     out_x.close()
     out_y.close()
     out_z.close()
