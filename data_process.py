@@ -25,7 +25,6 @@ replace_xml = {'&lt;': '<', '&gt;': '>', '&quot;': '"',
 分别代表OCR输出，witness和手写部分
 '''
 
-
 def process_file(paras):
     fn, out_fn = paras
     with gzip.open(fn, 'r') as f_:
@@ -51,6 +50,7 @@ def process_file(paras):
         line = json.loads(line.strip('\r\n'))
         cur_id = line['id']
         lines = line['lines']
+        # lines:包括begin, text, witnesses
         for item in lines:
             begin = item['begin']
             text = item['text']  # get the OCR'd text line
@@ -180,9 +180,7 @@ def merge_file(data_dir, out_dir):  # merge all the output files and information
 如果不存在out_dir则创建之
 新建100个进程的进程池
 使用进程池将输入文件和输出文件组成元组执行process_file操作
-
 '''
-
 
 def process_data(data_dir, out_dir):
     list_file = [ele for ele in listdir(data_dir) if ele.startswith('part')]
@@ -193,7 +191,6 @@ def process_data(data_dir, out_dir):
     pool = Pool(100)
     pool.map(process_file, zip(list_file, list_out_file))
     # map(process_file, zip(list_file, list_out_file))
-
     # merge_file(data_dir, out_dir)
 
 
